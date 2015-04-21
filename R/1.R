@@ -1,6 +1,5 @@
 library("Rglpk")
 library("slam")
-library("party")
 library("gbm")
 ####################################
 #  input
@@ -49,7 +48,6 @@ for (i in 1:ncol) {
   reg <- cbind(sols, vs, sols[,i])
   reg <- as.data.frame(reg)
   names(reg)[ncol(reg)] <- "y"
-  #ctree(y~., reg) # time consuming, more than 20 mins
   model <- gbm(y~., data = reg, n.trees = 500, distribution = "gaussian")  
   model_list[[i]] <- model
 }

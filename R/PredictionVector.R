@@ -1,0 +1,77 @@
+################################
+# testing
+################################
+A <- matrix(c(1,2,0,5,0, 2,0,0,5,4, 0,2,1,0,0), nrow = 3)
+P <- matrix(0, nrow = 3, ncol = 5)
+b <- c(10, 2, 5)
+
+################################
+# function definition
+################################
+predictor_vector <- function(P, A, b) {
+  n <- ncol(P)
+  P <- rule1(P, A)
+  res <- rule2a(P, A)    
+  res <- rule3(res$P, res$A)
+  d <- rule4(res$P, res$A, b, n) 
+}
+
+rule1 <- function(P, A) {
+  m <- nrow(P)  
+  for (i in 1:m) {
+    loc <- which(A[i,] != 0)
+    P[i, loc] <- 1
+  }
+  return(P)
+}
+
+# only for training
+rule2 <- function() {
+  
+}
+
+# only for testing
+rule2a <- function(P, A) {
+  m <- nrow(P)  
+  n <- ncol(P)
+
+  # ensure no column in P has more than one unity element
+  for (i in 1:n) {
+    sig <- sum(P[,i])
+    if (sig > 1) {
+      loc <- which(P[,i] == 1)  
+      esc <- sample(loc, sig-1)
+      P[esc,i] <- 0
+    }
+  }
+  
+  if (m < n) { # exclude some candidate variables randomly
+    esc <- sample(n, n-m)
+    P[,esc] <- 0
+    A[,esc] <- 0
+  }
+  
+  return(list(P=P, A=A))
+}
+
+# eliminate empty columns in P and A
+rule3 <- function(P, A) {
+  loc <- which(colSums(P) != 0)
+  P <- P[,loc]
+  A <- A[,loc]
+  return(list(P=P, A=A))
+}
+
+# construct d
+rule4 <- function(P, A, b, n) {
+  m <- nrow(P)    
+  dk <- solve(t(P)%*%A)%*%t(P)%*%b
+  dnk <- rep(0, n-m)
+  d <- c(dk, dnk)
+  return(d)
+}
+
+# choose optimal d from a set of ds for LP_te 
+rule5 <- function() {
+  
+}
