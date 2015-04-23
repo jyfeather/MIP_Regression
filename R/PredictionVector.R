@@ -87,7 +87,8 @@ rule3 <- function(P, A) {
 # construct d
 rule4 <- function(P, A, b, n) {
   m <- nrow(P)    
-  dk <- solve(t(P)%*%A)%*%t(P)%*%b
+  #dk <- solve(t(P)%*%A)%*%t(P)%*%b
+  dk <- ginv(t(P)%*%A)%*%t(P)%*%b
   dnk <- rep(0, n-m)
   d <- c(dk, dnk)
   return(d)

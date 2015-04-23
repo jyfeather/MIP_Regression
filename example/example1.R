@@ -1,6 +1,9 @@
+rm(list=ls())
+
 library("Rglpk")
 library("slam")
 library("gbm")
+library("MASS")
 
 source("./R/PredictionVector.R")
 source("./R/BAB.R")
@@ -9,7 +12,8 @@ source("./R/MIPSolution.R")
 ####################################
 #  input
 ####################################
-path <- paste(getwd(), "/example/mas74.mps", sep = "")
+#path <- paste(getwd(), "/example/mas74.mps", sep = "")
+path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
 model <- Rglpk_read_file(path, type = "MPS_fixed")
 if (FALSE) {
   # solve MIP 
@@ -19,10 +23,14 @@ if (FALSE) {
   # R:               more than 20 mins unsolved
   # coin-or cbc:     more than 40 mins unsolved
   # cplex:          
+  # boosting-tree:   less than 20 seconds
   ###################
-  # for 
+  # for p0033.mps
+  # R:               ~1.31s
+  # coin-or cbc:     ~0.16s
+  # boosting-tree:   ~2s
   beg_t <- proc.time()
-  res <- Rglpk_solve_LP(model$objective, model$constraints[[1]], model$constraints[[2]],
+  res_solver <- Rglpk_solve_LP(model$objective, model$constraints[[1]], model$constraints[[2]],
                         model$constraints[[3]], model$bounds, model$types, model$maximum)
   exc_t <- proc.time() - beg_t
 }
@@ -75,19 +83,22 @@ for (i in 1:ncol) {
 ####################################
 #   testing process
 ####################################
-testobj <- similar_obj(objective)
+testobj <- similar_obj(objective) 
 testcon <- similar_cons(constraint_3)
 
-#d <- predictor_vector(as.matrix(constraint_1), matrix(0, nrow = nrow, ncol = ncol), constraint_3)
-v <- v_test(constraint_1, testcon, testobj)
+d <- predictor_vector(as.matrix(constraint_1), matrix(0, nrow = nrow, ncol = ncol), constraint_3)
+#v <- v_test(constraint_1, testcon, testobj)
 
 # solution from LP solver
 sol_solver <- sub_prob(numnode, testobj, constraint_1, constraint_2, testcon, bounds, maximum, nrow, ncol)
 sol_solver <- sol_solver$sol
 # solution from regression
-names(v) <- names(reg)[-303]
+names(v) <- names(reg)[-length(reg)]
 sol <- c()
 for (i in 1:ncol) {
   sol <- c(sol, predict.gbm(model_list[[i]], v, n.trees = 50))
 }
-mipsol <- MIPround(sol)
+sol_regr <- MIPround(sol)
+opt_regr <- as.vector(objective) %*% sol_regr
+res_solver$optimum
+res_solver$solution
