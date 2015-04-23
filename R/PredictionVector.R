@@ -1,4 +1,25 @@
 ################################
+#   for temporary use
+################################
+# construct training v: predictor variable vector
+v_train <- function(result) {
+  return(c(result$sol, result$C$v))  
+}
+
+# construct testng v: predictor variable vector
+v_test <- function(A, b, c) {
+  A <- as.matrix(A)
+  c <- as.vector(c)
+  d <- cbind(A, b)
+  d <- as.vector(t(d))
+  v <- c(d, c)
+  # d_B <- P^T*A_B)^-1*P^T*b
+  v <- c(sample(v, nrow(A)), rep(0, ncol(A)-nrow(A)), c)    
+  v <- as.data.frame(t(v))
+  return(v)  
+}
+
+################################
 # testing
 ################################
 A <- matrix(c(1,2,0,5,0, 2,0,0,5,4, 0,2,1,0,0), nrow = 3)
@@ -14,6 +35,7 @@ predictor_vector <- function(P, A, b) {
   res <- rule2a(P, A)    
   res <- rule3(res$P, res$A)
   d <- rule4(res$P, res$A, b, n) 
+  return(d)
 }
 
 rule1 <- function(P, A) {
@@ -37,9 +59,9 @@ rule2a <- function(P, A) {
 
   # ensure no column in P has more than one unity element
   for (i in 1:n) {
-    sig <- sum(P[,i])
+    loc <- which(P[,i] == 1)  
+    sig <- length(loc)
     if (sig > 1) {
-      loc <- which(P[,i] == 1)  
       esc <- sample(loc, sig-1)
       P[esc,i] <- 0
     }
