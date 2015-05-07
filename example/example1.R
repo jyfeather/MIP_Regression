@@ -12,8 +12,9 @@ source("./R/MIPSolution.R")
 ####################################
 #  input
 ####################################
-#path <- paste(getwd(), "/example/mas74.mps", sep = "")
-path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
+#path <- paste(getwd(), "/example/Data/Sample/mas74", sep = "")
+path <- paste(getwd(), "/example/Data/Sample/pack1.mps", sep = "")
+#path <- paste(getwd(), "/example/Data/Sample/air04", sep = "")
 model <- Rglpk_read_file(path, type = "MPS_fixed")
 if (FALSE) {
   # solve MIP 
@@ -86,7 +87,7 @@ for (i in 1:ncol) {
 testobj <- similar_obj(objective) 
 testcon <- similar_cons(constraint_3)
 
-d <- predictor_vector(as.matrix(constraint_1), matrix(0, nrow = nrow, ncol = ncol), constraint_3)
+d <- predictor_vector(matrix(0, nrow = nrow, ncol = ncol), as.matrix(constraint_1), constraint_3, sol)
 #v <- v_test(constraint_1, testcon, testobj)
 
 # solution from LP solver
