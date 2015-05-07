@@ -3,7 +3,7 @@
 ################################
 # construct training v: predictor variable vector
 v_train <- function(result) {
-  return(c(result$sol, result$C$v))  
+  return(c(result$sol, result$c$v))  
 }
 
 # construct testng v: predictor variable vector
