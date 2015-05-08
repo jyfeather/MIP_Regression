@@ -9,6 +9,7 @@ library("Rglpk")
 library("slam")
 library("gbm")
 library("MASS")
+library("xgboost")
 
 source("./R/PredictionVector.R")
 source("./R/BAB.R")
@@ -38,9 +39,9 @@ ncol <- constraint_1$ncol
 #  time consuming work
 ####################################
 first = FALSE 
+numnode <- 2
 if (first) {
   numtree <- 300
-  numnode <- 2
   #reg <- array(NA, c(numtree, ncol*2, ncol)) too large
   vs <- matrix(NA, ncol = 2*ncol)
   sols <- matrix(NA, ncol = ncol)
@@ -49,7 +50,7 @@ if (first) {
     newobjs <- similar_obj(objective)
     newcons <- similar_cons(constraint_3)
     for (j in 1:numnode) {
-      res <- sub_prob(numnode, newobjs, constraint_1, constraint_2, newcons, bounds, maximum, nrow, ncol)  
+      res <- sub_prob(newobjs, constraint_1, constraint_2, newcons, bounds, maximum, nrow, ncol)  
       v <- v_train(res)
       sol <- res$sol
       vs <- rbind(vs, v)
@@ -79,8 +80,9 @@ for (i in 1:ncol) {
   reg <- cbind(vs, sols[,i])
   reg <- as.data.frame(reg)
   names(reg)[ncol(reg)] <- "y"
-  #model <- TrainModel(reg, "gbm")  #  Error: protect(): protection stack overflow 
-  model <- TrainModel(reg, "linear")
+  model <- TrainModel(reg, "gbm")  #  Error: protect(): protection stack overflow 
+  #model <- TrainModel(reg, "linear")
+  #model <- TrainModel(as.matrix(reg), "xgboost")
   model_list[[i]] <- model
 }
 
@@ -88,7 +90,7 @@ for (i in 1:ncol) {
 #   testing process
 ####################################
 # test solver
-num = 100
+num = 10000
 beg_t <- proc.time()
 while(num > 0) {
   testobj <- similar_obj(objective) 
@@ -102,22 +104,24 @@ while(num > 0) {
 exc_t_solver <- proc.time() - beg_t
 
 # test prediction
-num = 100
-beg_t <- proc.time()
+num = 10000
+vs <- matrix(NA, ncol = 2*ncol)
 while (num > 0) {
   testobj <- similar_obj(objective) 
   testcon <- similar_cons(constraint_3)
-  
   #d <- predictor_vector(matrix(0, nrow = nrow, ncol = ncol), as.matrix(constraint_1), constraint_3, sols[1,])
   v <- v_test(constraint_1, testcon, testobj)
-  
-  # solution from regression
-  names(v) <- names(reg)[-length(reg)]
-  sol <- c()
-  for (i in 1:ncol) {
-    sol <- c(sol, TestPrediction(model_list[[i]], v, method = "linear"))
-  }
+  vs <- rbind(vs, v)
   num <- num - 1
 }
-exc_t_prediction <- proc.time() - beg_t
+vs <- na.omit(vs)
 
+# solution from regression
+names(vs) <- names(reg)[-length(reg)]
+
+beg_t <- proc.time()
+sol <- c()
+for (i in 1:ncol) {
+  sol <- c(sol, TestPrediction(model_list[[i]], vs, method = "gbm"))
+}
+exc_t_prediction <- proc.time() - beg_t
