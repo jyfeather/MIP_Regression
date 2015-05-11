@@ -3,7 +3,7 @@
 ################################
 # construct training v: predictor variable vector
 v_train <- function(result) {
-  return(c(result$sol, result$c$v))  
+  return(c(result$solution))  
 }
 
 # construct testng v: predictor variable vector
@@ -59,7 +59,7 @@ rule2a <- function(P, A, sol_train) {
   n <- ncol(P)
   
   if (m < n) { # exclude some candidate variables randomly
-    loc <- which(sol_train!=0)
+    loc <- which(colSums(sols)!=0)
     esc <- sample(loc, m)
     P[,-esc] <- 0
     A[,-esc] <- 0
