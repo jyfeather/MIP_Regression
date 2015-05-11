@@ -10,7 +10,6 @@ library("slam")
 library("gbm")
 library("MASS")
 library("xgboost")
-library("ggplot2")
 
 source("./R/PredictionVector.R")
 source("./R/BAB.R")
@@ -20,8 +19,8 @@ source("./R/PredictionModel.R")
 ####################################
 #  input
 ####################################
-#path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
-path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
+path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
+#path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
 model <- Rglpk_read_file(path, type = "MPS_fixed")
 
 objective <- model$objective
@@ -43,7 +42,7 @@ first = TRUE
 if (first) {
   numtree <- 100
   #reg <- array(NA, c(numtree, ncol*2, ncol)) too large
-  vs <- matrix(NA, ncol = 2*ncol)
+  vs_train <- matrix(NA, ncol = 2*ncol)
   sols <- matrix(NA, ncol = ncol)
   beg_t <- proc.time()
   for (i in 1:numtree) {
@@ -53,44 +52,44 @@ if (first) {
                           bounds = rep("C",nrow), max = maximum)  
     v <- c(v_train(res), as.vector(newobjs))
     sol <- res$solution
-    vs <- rbind(vs, v)
+    vs_train <- rbind(vs_train, v)
     sols <- rbind(sols, sol)
     cat(i)
   }
   exc_t <- proc.time() - beg_t
-  vs <- na.omit(vs)
+  vs_train <- na.omit(vs_train)
   sols <- na.omit(sols)
   write.csv(sols, file = "./example/temp/train_sols.csv")
-  write.csv(vs, file = "./example/temp/train_vector.csv")
+  write.csv(vs_train, file = "./example/temp/train_vector.csv")
   rm(numtree, beg_t, newobjs, newcons, res, v, sol, i)
 } else {
   sols <- read.csv(file = "./example/temp/train_sols.csv", header = T)  
-  vs <- read.csv(file = "./example/temp/train_vector.csv", header = T)  
+  vs_train <- read.csv(file = "./example/temp/train_vector.csv", header = T)  
   sols <- sols[,-1]
-  vs <- vs[,-1]
+  vs_train <- vs_train[,-1]
 }
 
 ####################################
 #   training process
 ####################################
 # ncol prediction models, time consuming, 0.5 seconds per prediction
-model_list <- list()
-for (i in 1:ncol) {
-  reg <- cbind(vs, sols[,i])
-  reg <- as.data.frame(reg)
-  names(reg)[ncol(reg)] <- "y"
-  #model <- TrainModel(reg, "gbm")  #  Error: protect(): protection stack overflow 
-  #model <- TrainModel(reg, "linear")
-  model <- TrainModel(as.matrix(reg), "xgboost")
-  model_list[[i]] <- model
-}
+# model_list <- list()
+# for (i in 1:ncol) {
+#   reg <- cbind(vs, sols[,i])
+#   reg <- as.data.frame(reg)
+#   names(reg)[ncol(reg)] <- "y"
+#   model <- TrainModel(reg, "gbm")  #  Error: protect(): protection stack overflow 
+#   #model <- TrainModel(reg, "linear")
+#   #model <- TrainModel(as.matrix(reg), "xgboost")
+#   model_list[[i]] <- model
+# }
 
 ####################################
 #   testing process
 ####################################
 # test solver
 num = 100
-vs <- matrix(NA, ncol = 2*ncol)
+vs_test <- matrix(NA, ncol = 2*ncol)
 beg_t <- proc.time()
 while(num > 0) {
   testobj <- similar_obj(objective) 
@@ -99,11 +98,11 @@ while(num > 0) {
   # solution from LP solver
   sol_solver <- Rglpk_solve_LP(obj = testobj, mat = constraint_1, dir = constraint_2, rhs = testcon, 
                                bounds = rep("C",nrow), max = maximum)
-  vs <- rbind(vs, c(sol_solver$sol, as.vector(testobj)))
+  vs_test <- rbind(vs_test, c(sol_solver$sol, as.vector(testobj)))
   num <- num - 1
 }
 exc_t_solver <- proc.time() - beg_t
-vs <- na.omit(vs)
+vs_test <- na.omit(vs_test)
 
 # test prediction
 num = 100
@@ -119,9 +118,6 @@ num = 100
 # vs <- na.omit(vs)
 
 # solution from regression
-vs <- as.data.frame(vs)
-names(vs) <- names(reg)[-length(reg)]
-
 beg_t <- proc.time()
 # sol <- matrix(0, nrow = num, ncol = ncol)
 # for (i in 1:ncol) {
@@ -129,13 +125,13 @@ beg_t <- proc.time()
 # }
 
 # 3 nearest neighbour
-train_vs <- as.matrix(reg[,-ncol(reg)])
-test_vs <- as.matrix(vs)
+vs_train <- as.matrix(vs_train)
 sol <- matrix(NA, ncol = ncol)
 for (i in 1:num) {
-  diff <- sweep(train_vs, 2, test_vs[i,])
+  diff <- sweep(vs_train, 2, vs_test[i,])
   distance <- sqrt(rowSums(diff^2))
-  sol <- rbind(sol, reg[which.min(distance),1:ncol])
+  loc <- which(distance %in% sort(distance)[1:3])[1:3]
+  sol <- rbind(sol, colSums(vs_train[loc,1:ncol])/3)
 }
 sol <- na.omit(sol)
 exc_t_prediction <- proc.time() - beg_t
@@ -144,10 +140,16 @@ exc_t_prediction <- proc.time() - beg_t
 #   precision
 ######################################
 # compare the objective value
-sol_solver <- as.matrix(vs[,1:ncol])
+sol_solver <- as.matrix(vs_test[,1:ncol])
 sol_prediction <- sol
-C <- as.matrix(vs[,-c(1:ncol)])
+C <- as.matrix(vs_test[,-c(1:ncol)])
 obj_solver <- rowSums(sol_solver * C)
 obj_prediction <- rowSums(sol_prediction * C)
 error <- round((obj_prediction-obj_solver)/obj_solver,2)
 hist(error)
+
+cor <- c()
+for (i in 1:num) {
+  cor <- c(cor, cor(sol_prediction[i,], sol_solver[i,]))  
+}
+plot(cor)
