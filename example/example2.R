@@ -98,24 +98,24 @@ while(num > 0) {
   # solution from LP solver
   sol_solver <- Rglpk_solve_LP(obj = testobj, mat = constraint_1, dir = constraint_2, rhs = testcon, 
                                bounds = rep("C",nrow), max = maximum)
-  vs_test <- rbind(vs_test, c(sol_solver$sol, as.vector(testobj)))
+  
+  # construct test vs
+  useSol = FALSE
+  if (useSol) {
+    vs_test <- rbind(vs_test, c(sol_solver$sol, as.vector(testobj)))
+  } else {
+    d <- predictor_vector(matrix(0, nrow = nrow, ncol = ncol), as.matrix(constraint_1), constraint_3, sols)
+    vs_test <- rbind(vs_test, c(d, as.vector(testobj)))
+  }
+  
   num <- num - 1
+  cat(num)
 }
 exc_t_solver <- proc.time() - beg_t
 vs_test <- na.omit(vs_test)
 
 # test prediction
 num = 100
-# vs <- matrix(NA, ncol = 2*ncol)
-# while (num > 0) {
-#   testobj <- similar_obj(objective) 
-#   testcon <- similar_cons(constraint_3)
-#   #d <- predictor_vector(matrix(0, nrow = nrow, ncol = ncol), as.matrix(constraint_1), constraint_3, sols[1,])
-#   v <- v_test(constraint_1, testcon, testobj)
-#   vs <- rbind(vs, v)
-#   num <- num - 1
-# }
-# vs <- na.omit(vs)
 
 # solution from regression
 beg_t <- proc.time()

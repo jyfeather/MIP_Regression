@@ -91,7 +91,7 @@ rule4 <- function(P, A, b, n) {
   m <- nrow(P)    
   #dk <- solve(t(P)%*%A)%*%t(P)%*%b
   #dk <- ginv(t(P)%*%A)%*%t(P)%*%b
-  dk <- solve(A) %*% b
+  dk <- solve(A+diag(m)) %*% b
   dnk <- rep(0, n-m)
   d <- c(dk, dnk)
   return(d)
