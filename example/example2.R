@@ -2,14 +2,13 @@
 # In this example, purpose is to test 
 # speed and accuracy of prediction
 # method.
+# 
+# prediction method: nearest neighbour
 ####################################
 rm(list=ls())
 
 library("Rglpk")
-library("slam")
-library("gbm")
-library("MASS")
-library("xgboost")
+library("linprog")
 
 source("./R/PredictionVector.R")
 source("./R/BAB.R")
@@ -20,19 +19,29 @@ source("./R/PredictionModel.R")
 #  input
 ####################################
 path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
-#path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
 model <- Rglpk_read_file(path, type = "MPS_fixed")
 
-objective <- model$objective
+cvec <- as.vector(model$objective)
 constraint <- model$constraints
 constraint_1 <- constraint[[1]]
-constraint_2 <- constraint[[2]]
-constraint_3 <- constraint[[3]]
+const_dir <- constraint[[2]]
+bvec <- constraint[[3]]
 bounds <- model$bounds
 types <- model$types
 maximum <- model$maximum
 nrow <- constraint_1$nrow 
 ncol <- constraint_1$ncol 
+
+####################################
+#  read via Rglpk
+#  solve via linprog
+#  construct A matrix
+####################################
+Amat <- as.matrix(constraint_1)
+Amat <- rbind(Amat, diag(ncol)) # add upper bound into A
+bvec <- c(bvec, bounds$upper$val)
+const_dir <- c(const_dir, rep("<=", ncol))
+res <- solveLP(cvec, bvec, Amat, maximum = FALSE, const_dir)
 
 ####################################
 #  solving training LPs

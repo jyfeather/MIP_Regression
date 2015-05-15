@@ -1,26 +1,33 @@
 ######################################################
 #     To find feasible basis A_B
+#     refer to http://cran.r-project.org/web/views/Optimization.html
+#
 #     Using lpSolveAPI
 #     get.basis()
 #         return a vector: m(constraints, slack variables) + n(decision variables)
+#
+#     Using linprog
 ######################################################
-
 library("lpSolveAPI")
 library("Rglpk")
+library("linprog")
 
 ######################################################
 #  air05 example
 ######################################################
 rm(list=ls())
-path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
+#path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
+path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
 lp <- read.lp(path, type = "mps")
+#write.lp(lp, filename = "./example/Data/Sample/p0033.lp", type = "lp")
 
 # change MIP to LP, and solve
+n <- length(get.type(lp))
 set.type(lp, columns = 1:n, type = "real")
 solve(lp)
-n <- length(get.type(lp))
 m <- length(get.basis(lp))
 B_loc <- abs(get.basis(lp))
+res_lpSolveAPI <- get.variables(lp)
 
 # read constraint matrix via Rglpk package
 model <- Rglpk_read_file(path, type = "MPS_fixed")
@@ -31,6 +38,7 @@ constraint <- cbind(diag(m), constraint)
 B <- constraint[,B_loc]
 rhs <- get.rhs(lp)
 d_B <- round(solve(B) %*% rhs,2)
+d_B[B_loc > m]
 
 ######################################################
 #   standard example
@@ -61,14 +69,32 @@ d_B <- solve(B) %*% rhs
 rm(list=ls())
 x <- make.lp(0, 2)
 set.objfn(x, c(1,1))
-add.constraint(x, c(2, 1), ">=", 5)
+add.constraint(x, c(2, 1), "=", 5)
 add.constraint(x, c(2, 2), "=", 6)
 set.bounds(x, lower = c(0,0),columns = c(1,2))
-set.bounds(x, upper = c(4,4),columns = c(1,2))
+#set.bounds(x, upper = c(4,4),columns = c(1,2))
 solve(x)
 B_loc <- abs(get.basis(x))
-constraint <- matrix(c(1,0,0,1,2,2,1,1), nrow = 2)
+constraint <- matrix(c(1,0,0,1,2,2,1,2), nrow = 2)
 rhs <- get.rhs(x)
 d_B <- solve(constraint[,B_loc]) %*% rhs
 d_B[B_loc > 2]
 get.variables(x)
+
+#####################################################
+#  Package 'linprog' exmaple  
+#####################################################
+cvec <- as.vector(model$objective)
+bvec <- as.vector(model$constraints[[3]])
+bvec <- c(bvec, rep(1, 33))
+Amat <- as.matrix(model$constraints[[1]])
+Amat <- rbind(Amat, diag(33))
+res_linprog <- solveLP( cvec, bvec, Amat, maximum = FALSE)
+
+Amat <- cbind(diag(49), Amat)
+basis <- rownames(res_linprog$basvar)
+basis_var <- basis[grep("^[0-9].*", basis)]; basis_var <- as.numeric(basis_var)
+basis_slack <- basis[grep("S.*", basis)]; basis_slack <- as.numeric(substring(basis_slack,3)) 
+A_b <- Amat[,c(basis_slack, basis_var+49)]
+d_b <- round(solve(A_b) %*% bvec, 2)
+d_b_solved <- res_linprog$basvar
