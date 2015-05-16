@@ -11,23 +11,26 @@
 library("lpSolveAPI")
 library("Rglpk")
 library("linprog")
+library("clpAPI")
 
 ######################################################
 #  air05 example
 ######################################################
 rm(list=ls())
-#path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
-path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
+path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
+#path <- paste(getwd(), "/example/Data/Sample/p0033.mps", sep = "")
 lp <- read.lp(path, type = "mps")
 #write.lp(lp, filename = "./example/Data/Sample/p0033.lp", type = "lp")
 
 # change MIP to LP, and solve
 n <- length(get.type(lp))
+set.bounds(lp, upper = rep(Inf, n), columns = 1:n)
 set.type(lp, columns = 1:n, type = "real")
 solve(lp)
 m <- length(get.basis(lp))
 B_loc <- abs(get.basis(lp))
 res_lpSolveAPI <- get.variables(lp)
+res_lpSolveAPI[res_lpSolveAPI!=0]
 
 # read constraint matrix via Rglpk package
 model <- Rglpk_read_file(path, type = "MPS_fixed")
@@ -38,7 +41,10 @@ constraint <- cbind(diag(m), constraint)
 B <- constraint[,B_loc]
 rhs <- get.rhs(lp)
 d_B <- round(solve(B) %*% rhs,2)
+B_loc <- sort(B_loc)
 d_B[B_loc > m]
+
+
 
 ######################################################
 #   standard example
@@ -98,3 +104,37 @@ basis_slack <- basis[grep("S.*", basis)]; basis_slack <- as.numeric(substring(ba
 A_b <- Amat[,c(basis_slack, basis_var+49)]
 d_b <- round(solve(A_b) %*% bvec, 2)
 d_b_solved <- res_linprog$basvar
+
+
+#####################################################
+#####################################################
+rm(list=ls())
+# preparing the model
+lp <- initProbCLP()
+nrows <- 5
+ncols <- 8
+# objective function
+obj <- c(1, 0, 0, 0, 2, 0, 0, -1)
+# upper and lower bounds of the rows
+rlower <- c(2.5, -1000, 4, 1.8, 3)
+rupper <- c(1000, 2.1, 4, 5, 15)
+# upper and lower bounds of the columns
+clower <- c(2.5, 0, 0, 0, 0.5, 0, 0, 0)
+cupper <- c(1000, 4.1, 1, 1, 4, 1000, 1000, 4.3)
+# constraint matrix
+ia <- c(0, 4, 0, 1, 1, 2, 0, 3, 0, 4, 2, 3, 0, 4)
+ja <- c(0, 2, 4, 6, 8, 10, 11, 12, 14)
+ar <- c(3.0, 5.6, 1.0, 2.0, 1.1, 1.0, -2.0, 2.8,
+        -1.0, 1.0, 1.0, -1.2, -1.0, 1.9)
+# direction of optimization
+setObjDirCLP(lp, 1)
+# load problem data
+loadProblemCLP(lp, ncols, nrows, ia, ja, ar,
+               clower, cupper, obj, rlower, rupper)
+# solve lp problem
+solveInitialCLP(lp)
+# retrieve the results
+getSolStatusCLP(lp)
+getObjValCLP(lp)
+getColPrimCLP(lp)
+getRowPrimCLP(lp)
