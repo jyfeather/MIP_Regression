@@ -39,3 +39,14 @@ proc.time() - beg
 ###########################################
 # complex problem
 ###########################################
+path <- paste(getwd(), "/example/Data/Sample/air05", sep = "")
+model <- read.lp(filename = path, type = "mps")
+set.type(model, columns = 1:ncol, type = "real") # change MIP to LP 
+
+# w/o trick
+beg <- proc.time()
+solve(model)
+proc.time() - beg
+
+# w/ trick
+
