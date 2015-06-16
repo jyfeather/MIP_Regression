@@ -11,9 +11,10 @@ library(lpSolveAPI)
 # w/o trick
 lprec <- make.lp(0, 2)
 set.objfn(lprec, c(1, 1))
-add.constraint(lprec, c(1, 0), ">=", 6)
-add.constraint(lprec, c(0, 1), ">=", 6)
-add.constraint(lprec, c(1, 1), "<=", 11)
+add.constraint(lprec, c(1, 0), "<=", 1)
+add.constraint(lprec, c(0, 1), "<=", 1)
+#add.constraint(lprec, c(1, 1), ">", 100)
+#add.constraint(lprec, c(0, 1), ">", 2)
 beg <- proc.time()
 n <- 10000
 while(n > 0) {
