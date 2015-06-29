@@ -1,18 +1,46 @@
 ################################################
 # LP & QP comparison
 ################################################
+
+################################################
+# generate synthetic problem w/ box constraints
+################################################
 rm(list=ls())
+library(Matrix)
+library(quadprog)
+source(file = "./R/ADMM.R")
 
-################################################
-# generate synthetic problem
-################################################
-n <- 1000 # number of variables
-m <- 800  # number of constraints
+n <- 100;
+P = matrix(rnorm(n*n),n,n)
+P = nearPD(P)$mat
 
-A <- matrix(rnorm(n*m),m,n)
-b <- rnorm()
+q = rnorm(n)
+r = 0
 
-# for LP
-C <- 
+l = rnorm(n)
+u = rnorm(n)
+lb = pmin(l, u)
+ub = pmax(l, u)
 
-library(lpSolveAPI)
+# quadprog
+print("solve QP using quadprog")
+Amat <- t(rbind(diag(n),-diag(n)))
+bvec <- c(lb, -ub)
+t_start <- proc.time()
+obj <- solve.QP(P, q, Amat, bvec)$val
+print(proc.time()-t_start)
+
+print("-------------------------------")
+# ADMM
+print("solve QP using ADMM")
+t_start <- proc.time()
+obj2 <- QP_ADMM(P, q, r, lb, ub, 1, 1)
+print(proc.time()-t_start)
+
+print("-------------------------------")
+# linprog
+print("solve LP using linprog")
+cc <- rnorm(n)
+t_start <- proc.time()
+obj3 <- linprog(cc, lb = lb, ub = ub)
+print(proc.time()-t_start)
